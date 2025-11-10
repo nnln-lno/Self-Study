@@ -52,29 +52,43 @@ What can we obtaion from "**dwt_readaccdata()**" and "**dwt_readdiagnostics()**"
   각 파라미터를 하나씩 보면 아래와 같다.
 
   <details>
-    <summary> maxNoise (작성중)</summary><br/>
+    <summary> 🔹maxNoise (작성중)</summary><br/>
 
     asdasd
   </details>
   
   <details>
-    <summary> firstPath (작성중)</summary><br/>
+    <summary> 🔹firstPath </summary><br/>
 
-  First Path Index는 16비트 값으로, LDE 알고리즘이 누적기 내부에서 첫번째 경로(First Path)라고 판단한 위치를 나타냄.
-
-  LDE 알고리즘이 CIR을 분석하는 동안 설정되며, LDEDONE 상태 비트가 Set 될 때 갱신된다.
-
-  단위는 1ns의 sample time 을 곱하여, 공기 중 전파 이동거리로 약 30cm 정도를 구분지을 수 있지만,,
-
-  더 정밀하게 표현하기 위해 인덱스 값은 정수부와 소수부로 구성할 수 있음
-
-  - 상위 10비트(MSB 10bit) -> 정수 부분
-  - 하위 6비트(LSB 6비트) -> 소수 부분
-  <br/><br/>
-    
-  따라서, 이는 정수부(10비트) + 소수부(6비트)로 구성된 16비트 고정소수점 값으로 First Path의 위치를 표현함.
+    First Path Index는 16비트 값으로, LDE 알고리즘이 누적기 내부에서 첫번째 경로(First Path)라고 판단한 위치를 나타냄.
+  
+    LDE 알고리즘이 CIR을 분석하는 동안 설정되며, LDEDONE 상태 비트가 Set 될 때 갱신된다.
+  
+    단위는 1ns의 sample time 을 곱하여, 공기 중 전파 이동거리로 약 30cm 정도를 구분지을 수 있지만,,
+  
+    더 정밀하게 표현하기 위해 인덱스 값은 정수부와 소수부로 구성할 수 있음
+  
+    - 상위 10비트(MSB 10bit) -> 정수 부분
+    - 하위 6비트(LSB 6비트) -> 소수 부분
+    <br/><br/>
+      
+    따라서, 이는 정수부(10비트) + 소수부(6비트)로 구성된 16비트 고정소수점 값으로 First Path의 위치를 표현함.
   
   </details> 
+
+  <details>
+  <summary> 🔹stdNoise </summary><br/>
+
+    16비트 값으로, 누산기(accumulator) 데이터를 분석하는 동안 관찰된 노이즈 수준의 표준 편차를 나타냄.
+
+    수신된 신호의 품질 및 LDE가 생성한 수신 타임스탬프의 신뢰도를 평가하는데 사용할 수 있음.
+
+    <img width="752" height="118" alt="image" src="https://github.com/user-attachments/assets/de531793-773f-4b57-8c3c-f658e456d552" />
+
+    <img width="752" height="452" alt="image" src="https://github.com/user-attachments/assets/96b4ad37-7711-41f9-b29a-d6526f01a645" />
+
+  
+</details> 
 
 - **✅ dwt_readaccdata()**
 
