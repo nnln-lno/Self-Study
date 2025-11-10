@@ -1,4 +1,4 @@
-<img width="1134" height="385" alt="image" src="https://github.com/user-attachments/assets/7622c751-a8fd-4b37-808f-d08f60de0efd" /># HOW TO USE DW1xxx SERIES ?
+# HOW TO USE DW1xxx SERIES ?
 
 ## FRAME STRUCTURE
 
