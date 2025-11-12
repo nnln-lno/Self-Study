@@ -25,6 +25,10 @@ UWB 통신은 기본적으로 프레임(Frame) 단위 전송 및 수신을 기�
 - **PHR or PHY**은 데이터 페이로드의 길이와 전송 속도(rate)
 - 마지막으로 **Data**에는 실제 전송되는 정보가 포합되어 있음
 
+<img width="725" height="315" alt="image" src="https://github.com/user-attachments/assets/e831874e-109f-471e-9101-60fbed88d2df" />
+
+대충 그려봤는데, 이런 느낌으로 Preamble이 구성되는 것 같다. 이는 안테나 설정에 따라 길이나 duration 등이 달라질 수 있음.
+
 <details>
   <summary> 🔹Preamble (SYNC Field) </summary><br/>  
 
@@ -183,6 +187,20 @@ UWB 통신은 기본적으로 프레임(Frame) 단위 전송 및 수신을 기�
 $R(t) = S(t) * h(t)$
 
 즉, CIR은 전송 매체가 신호의 주파수 스펙트럼 형태(spectral shape)와 시간적 특성(temporal properties)을 어떻게 변화시키는지를 나타냄.
+
+------
+
+그 CIR 인덱스는 정말로 의미가 없을까?
+
+> FP_INDEX는 항상 750 근방에 잡히기 때문에, 이걸 그대로 쓰는 건 의미 없다.
+
+그러면 CIR로 뭘 알 수 있을지 한번 생각해보자.
+
+DW1000은 내부 자체 알고리즘에서 FP_INDEX를 Direct Path로 판단하여 거리 계산에 사용한다. 
+
+그러면 FP_INDEX(예 : 750)를 기준 0s 로 잡고, 만약 760에 Peak가 하나 존재한다면 1ns * (760-750) = 10ns 만큼 지연되어 신호가 들어왔음을 말함.
+
+따라서, 기존 TOF 값에 보정하여 Multipath 길이를 계산할 수 있을 뿐만 아니라, 실제 길이를 안다면 해당 신호가 NLOS 인지 판단 또한 할 수 있다는 점에서 의의를 가짐.
 
 ## DIAGNOSTICS
 
