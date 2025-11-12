@@ -58,6 +58,7 @@ UWB 통신은 기본적으로 프레임(Frame) 단위 전송 및 수신을 기�
   - 심볼 길이는 다음과 같음. (508개의 chip으로 이루어진 한 심볼의 시간)
     - 16MHz PRF : 496 / 499.2 us = $0.9 us = 993.59 ns$
     - 64MHz PRF : 508 / 499.2 us = $1.01 us = 1017.63 ns$
+      (쉽게 2ns의 Chip이 508개 있으므로 하나의 심볼에는 1017.63 ns 가 소요된다.)
    
   <img width="752" height="168" alt="image" src="https://github.com/user-attachments/assets/94285065-45f8-40f9-9050-3310b3d63063" />
 
