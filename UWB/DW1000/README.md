@@ -46,52 +46,67 @@ UWB 통신은 기본적으로 프레임(Frame) 단위 전송 및 수신을 기�
 
   ------
 
-  상관(Correlation)은 "수신 신호"와 "프리앰블 패턴"을 비교하는 과정을 말함.
-
-  수신 신호 $r[n]$이 들어오면, 미리 알고 있는 프리앰블 $p[n]$과 같은 위치에 있는 비트/샘플끼리 곱하고 합산함.
-
-  $C[k] = \sum_{n} r[n+k] \cdot p[n]$
-
-  이렇게 되면, 수신 신호에서 프리앰블과 잘 맞는 위치에서 상관값이 크게 나타남.
-
-  다만, 한번만 누적하면 잡음으로 인해 신호가 잘 안보일 수 있어, 여러 프리앰블 신호를 차례로 쌓아 누적함.
-
-  (반복되는 프리앰블 신호들을 모두 더해, 신호 대 잡음비(SNR)을 높임)
-
-  ------
-
   PHR과 Payload 구간에서 사용되는 BPM/BPSK 변조와 달리, Preamble + SFD (SHR) 부분은 단일 펄스(Single Pulse)로 구성된다.
+
+  <img width="752" height="473" alt="image" src="https://github.com/user-attachments/assets/cf583835-c851-4f73-99bf-b247e7afce71" />
 
   하나의 심볼(symbol)은 약 500개의 "칩(chip)" 시간 간격으로 나뉘며, 64MHz 의 경우 508개의 칩으로 구성되어 있다.
 
   각 칩 구간에는 양(+)의 펄스, 혹은 음(-)의 펄스, 그리고 펄스 없음 중 하나가 전송될 수 있다. 
 
   - 칩 간격(chip interval)은 499.2 MHz = 2ns 이며, 이는 UWB PHY의 기본 주파수임.
-  - 1코드 포인트당 3개의 0이 들어가므로 127 + 127*3 = 508
-  - 심볼 길이는 다음과 같음.
-    - 16MHz PRF : 496 / 499.2 us = $0.9 us$
-    - 64MHz PRF : 508 / 499.2 us = $1.01 us$
+  - 심볼 길이는 다음과 같음. (508개의 chip으로 이루어진 한 심볼의 시간)
+    - 16MHz PRF : 496 / 499.2 us = $0.9 us = 993.59 ns$
+    - 64MHz PRF : 508 / 499.2 us = $1.01 us = 1017.63 ns$
    
-  
+  <img width="752" height="168" alt="image" src="https://github.com/user-attachments/assets/94285065-45f8-40f9-9050-3310b3d63063" />
+
+  심볼 간 실제로 전송되는 펄스 시퀀스는 프리앰블 코드(Preamble Code)에 의해 결정된다. 
+
+  <img width="752" height="340" alt="image" src="https://github.com/user-attachments/assets/5b0aecb4-3cd6-43e0-877f-345cef129a35" />
+
+  64MHz PRF 에서는 길이가 127인 코드(length-127 preamble code) 16개를 정의한다.
+
+  표준은 특정 채널마다 사용할 코드를 지정하며 64MHz PRF 에서는 채널 당 4개 코드중 선택 가능하다.
+
+  코드의 확산(Spread) 방식은 아래와 같다.
+    - 길이 31 코드 : 각 코드 포인트마다 15개의 0을 삽임 -> 심볼당 496칩
+    - 길이 127 코드 : 각 코드 포인트마다 3개의 0을 삽임 -> 심볼당 508칩 ( 127 + 127*3 )
+
+  프리앰블 길이(Preamble length)는 시퀀스가 몇 번 반복되는지, 즉 몇 개 심볼을 반복하는지로 정의된다.
+
+  이는 PSR (Preamble Symbol Repetitions) 설정값을 16, 64, 1024, 4096 으로 정의되지만
+
+  추가로 128, 256, 512, 1536, 2048 설정도 지원한다. ( 64 심볼 미만의 프레임은 수신하지 못함 )
 
   ------
 
-  **FROM USER MANUAL 216 page**
+  이 프리앰블 시퀀스는 완벽한 주기적 자기상관 (Perfect Periodic Autocorrelation) 특성을 가짐
 
-  - 프리앰블 심볼 (Preamble Symbol) 
+  즉, Coherent Receiver가 송신기와 수신기 사이 RF 채널에 대한 정확한 Impulse Response를 결정할 수 있게함.
 
-      한 프리앰블 심볼은, 약 508개의 칩(64MHz 기준) 간격으로 나눠지며, 그 간격은 UWB PHY 기본 주파수(499.2MHz)를 따름
+  - 자기 상관 (Auto Correlation)
 
-      > chip 간격 = 1 / 499.2 MHz = 2ns, 따라서 한 심볼의 시간 길이 = 508 * 2ns = 1.106us
-    
-  - 프리앰블 코드 (Preamble Code)
+    상관(Correlation)은 "수신 신호"와 "프리앰블 패턴"을 비교하는 과정을 말함.
 
-      심볼 안에서, 실제로 전송되는 펄스 시퀀스는 프리앰블 코드로 결정됨, 64MHz PRF 기준 16개 코드, 길이 127
+    자기 상관은 자기 자신의 신호 시간 지연을 두고 곱해서 합산한 값을 말함.
 
-      각 코드 포인트 사이에 '0' 을 삽입(Spread)함.
+    $C[k] = \sum_{n} p[n+k] \cdot p[n]$
 
-      > 1코드 포인트당 3zeros = 508 chips
- 
+    (시간 지연이 없을 때, 자기 신호와의 자기 상관은 가장 최대값이 되며 이를 "완벽한 자기상관" 이라고 함)
+
+    수신기에서의 시간 지연이 존재하더라도, 자기상관 계산으로 정확히 심볼 시작 위치를 찾을 수 있음
+  
+    수신 신호 $r[n]$이 들어오면, 미리 알고 있는 프리앰블 $p[n]$과 같은 위치에 있는 비트/샘플끼리 곱하고 합산함.
+  
+    $C[k] = \sum_{n} r[n+k] \cdot p[n]$
+  
+    이렇게 되면, 수신 신호에서 프리앰블과 잘 맞는 위치에서 상관값이 크게 나타남.
+  
+    다만, 한번만 누적하면 잡음으로 인해 신호가 잘 안보일 수 있어, 여러 프리앰블 신호를 차례로 쌓아 누적함.
+  
+    (반복되는 프리앰블 신호들을 모두 더해, 신호 대 잡음비(SNR)을 높임)
+
 </details>
 
 <details>
@@ -128,6 +143,8 @@ UWB 통신은 기본적으로 프레임(Frame) 단위 전송 및 수신을 기�
 
   SFD 다음에 전송되며 데이터율과 프레임 길이 정보를 포함하고 있음.
 
+  <img width="752" height="200" alt="image" src="https://github.com/user-attachments/assets/4b6e5c17-6a47-45d2-8aa3-af2e1d43f8ca" />
+  
 </details>
 
 <details>
