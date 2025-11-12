@@ -16,18 +16,21 @@ DW1000의 경우 선택할 수 있지만, 64MHz를 예로 1초에 64,000,000 개
 
 <img width="752" height="245" alt="image" src="https://github.com/user-attachments/assets/6cf782ac-db92-46e5-8d8e-9489b61abf05" />
 
+<img width="752" height="393" alt="image" src="https://github.com/user-attachments/assets/c2bc4449-6bb2-4f5e-93a8-72b758ea79b3" />
+
+
 UWB 통신은 기본적으로 프레임(Frame) 단위 전송 및 수신을 기반으로 함.
 
-- **Preamble**과 **SFD**(Start of frame delimiter)는 "동기화 헤더(Synchronisation Header)"를 구성
+- **Preamble**과 **SFD**(Start of frame delimiter)는 "동기화 헤더(SHR : Synchronisation Header)"를 구성
 - **PHR or PHY**은 데이터 페이로드의 길이와 전송 속도(rate)
 - 마지막으로 **Data**에는 실제 전송되는 정보가 포합되어 있음
 
 <details>
-  <summary> 🔹Preamble </summary><br/>
+  <summary> 🔹Preamble (SYNC Field) </summary><br/>  
 
   프리앰블은, 통신 시스템에서 데이터 프레임이나 패킷의 시작 부분의 특별한 비트 패턴이나 신호 시퀀스를 의미함.
 
-  목적은, 수신기가 수신 신호의 동기화를 수행하고 데이터를 올바르게 해석할 수 있도록 준비시키는 데 있음.  
+  목적은, 수신기가 수신 신호의 동기화를 수행하고 데이터를 올바르게 해석할 수 있도록 준비시키는 데 있음.   
 
   DW1000의 경우, 여러 설정값이 있지만 본 분석에서는 128을 활용하였음.
 
@@ -54,6 +57,22 @@ UWB 통신은 기본적으로 프레임(Frame) 단위 전송 및 수신을 기�
   다만, 한번만 누적하면 잡음으로 인해 신호가 잘 안보일 수 있어, 여러 프리앰블 신호를 차례로 쌓아 누적함.
 
   (반복되는 프리앰블 신호들을 모두 더해, 신호 대 잡음비(SNR)을 높임)
+
+  ------
+
+  PHR과 Payload 구간에서 사용되는 BPM/BPSK 변조와 달리, Preamble + SFD (SHR) 부분은 단일 펄스(Single Pulse)로 구성된다.
+
+  하나의 심볼(symbol)은 약 500개의 "칩(chip)" 시간 간격으로 나뉘며, 64MHz 의 경우 508개의 칩으로 구성되어 있다.
+
+  각 칩 구간에는 양(+)의 펄스, 혹은 음(-)의 펄스, 그리고 펄스 없음 중 하나가 전송될 수 있다. 
+
+  - 칩 간격(chip interval)은 499.2 MHz = 2ns 이며, 이는 UWB PHY의 기본 주파수임.
+  - 1코드 포인트당 3개의 0이 들어가므로 127 + 127*3 = 508
+  - 심볼 길이는 다음과 같음.
+    - 16MHz PRF : 496 / 499.2 us = $0.9 \times us$
+    - 64MHz PRF : 508 / 499.2 us = $1.01 \times us$
+   
+  
 
   ------
 
@@ -92,12 +111,44 @@ UWB 통신은 기본적으로 프레임(Frame) 단위 전송 및 수신을 기�
 
   - SFD 
 
-      프리앰블의 끝에 존재하며 BPM/PBSK 형태로 PHR 변조를 시작함 [link](https://helpfiles.keysight.com/csg/n7610/Content/Main/Concept%20802.15.4%20UWB.htm)
+      프리앰블의 마지막 및 PHY 데이터의 시작을 알려줌.
+
+      이 SFD는 프레임 동기화 및 Ranging 카운터 관리 역할을 수행함.
+
+      <img width="752" height="303" alt="image" src="https://github.com/user-attachments/assets/f0a45b7f-7331-4e64-93bd-55d17e9d9776" />
 
       SFD의 길이와 시퀀스는 데이터율에 따라 달라짐
 
       > 110kbps의 경우 64 심볼, 그리고 시퀀스는 8개를 예시로 [0 +1 0 -1 +1 0 0 -1] 이런식임.
   
+</details>
+
+<details>
+  <summary> 🔹PHY or PHR (Physical Layer Header) </summary><br/>
+
+  SFD 다음에 전송되며 데이터율과 프레임 길이 정보를 포함하고 있음.
+
+</details>
+
+<details>
+  <summary> 🔹Payload or Data </summary><br/>  
+
+  통신 데이터를 전달하는 부분임. IEEE 802.15.4 에서 사용되는 UWB는 고속 RF(무선 주파수) 펄스를
+
+  기반으로 하기 때문에 종종 임펄스 라디오 UWB (IR-UWB : Impulse Radio UWB) 라고 불림.
+
+  <img width="752" height="390" alt="image" src="https://github.com/user-attachments/assets/9e3675ca-ad9f-4945-809f-7824956913f4" />
+
+  프레임의 PHR 및 데이터 구간은, 정보를 담는 비트들이 버스트(Burst)위치에 의해 표현되며 이러한 변조방식을 
+
+  **버스트 위치 변조(BPM: Burst Position Modulation)** 라고 함.
+
+  각 데이터 비트는 컨볼루션 인코더(Convolution Encoder)를 통과하며, 이 인코더는 패리티 비트(Parity Bit)를 생성함.
+
+  이 패리티 비트는 버스트의 위상(Phase)를 양(+) 또는 음(-)으로 설정하는데 사용하며, 이러한 위상 변조 방식을
+
+  **이진 이상 편이 변조(BPSK : Binary Phase-Shift Keyring)** 라고 부른다. 
+
 </details>
 
 ## CIR (Channel Impulse Response)
@@ -184,9 +235,6 @@ What can we obtaion from "**dwt_readaccdata()**" and "**dwt_readdiagnostics()**"
     그리고 Accumulator 1심볼 전체는 약 1ns 단위로 샘플링 되며, 기준은 **보정된 RX_STAMP**를 사용함.
 
     RX_STAMP = RX_RAWST + LDE 보정값
-
-    
-  
   
   </details> 
 
