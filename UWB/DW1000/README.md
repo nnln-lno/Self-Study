@@ -1,6 +1,172 @@
 # HOW TO USE DW1xxx SERIES ?
 
-## BASIC FOR UNDERSTANDING
+## 🟥 MESSAGE TRANSMISSION
+
+#### ⏩ BASIC TRANSMISSION
+
+송신 시퀀스는 아래 그림과 같다.
+
+<img width="752" height="188" alt="image" src="https://github.com/user-attachments/assets/947b2c4e-c5d5-4f1c-b877-a8e501851173" />
+
+송신(Transmit)을 위해, 호스트 컨트롤러가 송신할 데이터를 0x09 (Transmit Data Buffer) 레지스터에 기록해야 한다.
+
+<img width="752" height="114" alt="image" src="https://github.com/user-attachments/assets/0b640ff1-6846-4ca2-9eb0-1fbab401737d" />
+
+또한, 프리앰블(Preamble) 길이, 데이터 전송 속도(Data rate), PRF(Pulse Repetition Frequency) 등을 0x08 (Transmit Frame Control) 레지스터에 기록해야함.
+
+<img width="752" height="120" alt="image" src="https://github.com/user-attachments/assets/50bfe177-d6bf-4267-8fb5-542cbd358de9" />
+
+송신기 설정은 "IDLE" 상태에서 수행되지만, 프레임 설정(Frame Configuration)은 송신 중에도 수행할 수 있음.
+
+(OFF, WAKEUP, INIT, IDLE 등의 Operational State에 대해서는 User Manual 15page 참고하면 된다.)
+
+모든 관련 설정이 완료되었다는 가정 하에, 호스트는 0x0D (Ssyem Control Register) 레지스터에 "TXSTRT" 제어비트를 설정하여 송신을 시작.
+
+<img width="752" height="440" alt="image" src="https://github.com/user-attachments/assets/e546e6e3-80e9-4b38-ac71-66d386105dad" />
+
+송신이 요청되면, DW1000은 자동으로 전체 프레임을 전송하며 Preamble, SFD, PHR, Payload(Data) 를 순서대로 송신하게 됨.
+
+프레임 전송의 완료는 0x0F (System Event Status Register) 레지스터의 TXFRS 이벤트 상태 비트를 통해 호스트에게 신호로 전달됨.
+
+이 후, DW1000은 IDLE 모드로 돌아가 다음 명령을 기다리게 됨.
+
+<img width="752" height="125" alt="image" src="https://github.com/user-attachments/assets/69623a59-ce75-491a-9984-86f77d52a357" />
+
+------
+
+#### ⏩ Transmission Timestamp
+
+  안테나로 부터 PHR의 첫 번째 심볼이 전송되는 시점이 송신 타임스탬프가 찍히는 시점으로 **RMARKER** 라고 정의함.
+
+  <img width="752" height="220" alt="image" src="https://github.com/user-attachments/assets/8cd103c0-a3cf-476b-a1d1-a5a1537628ed" />
+
+  따라서, DW1000의 디지털 소인 회로는 PHR 전송을 시작하는 시점의 **시스템 클록 카운터값**을 RAW 송신 타임스탭프에 기록한다.
+
+  이후, RAW 스탬프에 "송신 안테나 지연값(Transmit Antenna Delay)"을 보정한 송신 타임스탭프를 계산한다.
+
+  RAW TIMESTAMP 보정에 사용되는 안테나 딜레이 값과 보정된 TIMESTAMP는 각각 0x18 (Transmitter Antenna Delay)과 0x17 (Transmit Time Stamp)에 기록된다.
+  
+  <img width="752" height="119" alt="image" src="https://github.com/user-attachments/assets/efbf9457-0b63-43d3-b3ad-cb3fba5c2348" />
+
+  <img width="752" height="119" alt="image" src="https://github.com/user-attachments/assets/e62febbf-6c25-4ce0-b07a-0c5db379b3ef" />
+
+## 🟥 MESSAGE RECEPTION
+
+#### ⏩ BASIC RECEPTION
+
+프레임 수신은 호스트의 요청 or 수신기의 자동 재활성화(automatic re-enabling)에 의해 활성화 된다.
+
+수신기기가 활성화 되면 프리앰블이 탐지될때 까지 지속적으로 프리앰블을 탐색하고,
+
+이러한 탐색과정을 일정 시간 후 중단할 수 있도록 하는 프리앰블 탐지 타임아웃(Preamble Detection Timeout)을 설정할 수 있따.
+
+전반적인 수신 과정은 아래와 같다.
+
+<img width="752" height="124" alt="image" src="https://github.com/user-attachments/assets/582ce736-bb6d-4f18-95d7-2bc34ca6d295" />
+
+**1. Preamble Detection**
+
+프리앰블 시퀀스는 여러 개의 프리앰블 심볼로 이루어진 Chunk 단위로 상호 상관(Cross-Correlation)을 수행하여 검출된다.
+
+이 때, 사용되는 청크의 크기는 0x27:08 (DRX_TUNE2) 레지스터의 PAC(Preamble Accumulation Count) 설정값에 의해 결정된다.
+
+<img width="752" height="111" alt="image" src="https://github.com/user-attachments/assets/79e37338-66f3-45e8-85d6-d2f97616fc2d" />
+
+PAC의 크기는 예상되는 프리앰블 길이에 따라 선택되어야 하며, 이상한 값을 쓰면 DW1000의 오작동을 유발할 수 있다.
+
+- 큰 PAC 크기는 충분히 긴 프리앰블 또한 클 때 더 나은 성능을 제공함.
+- 하지만, 프리앰블 길이에 비해 PAC가 너무 크면, 수신 성능이 저하되거나 극단적인 경우 수신이 실패할 수 있음.
+
+  (예를 들면, 64-symbol 프리앰블에서 PAC=64 인 경우, 프레임은 절대 수신되지 않음)
+
+권장되는 설정값은 아래와 같으며, 프리앰블 길이 선택은 USER MANUAL 210page에 나타나 있음.
+
+<img width="400" height="369" alt="image" src="https://github.com/user-attachments/assets/24c6747e-f1e6-4334-91d2-731f9001de01" />
+
+수신 중, 유효한 프리앰블이 설정된 시간 내에 검출되지 않으면 수신을 중단(Abort)할 수 있다.
+
+- 이는 프리앰블 검출 타임아웃(Preamble Detection Timeout)을 이용하여 수행함
+- 0x27:24 (DRX_PRETOC) 레지스터를 통해 Cofiguration이 가능함.
+
+이러한 기능은 특히 메시지 송신 후 응답을 기다리는 상황에서 유용하게 동작함
+
+- 응답 프리앰블이 검춛되지 않으면, 기다리던 응답이 오지 않는것으로 판단함.
+- 가능한 빠른 시점에 수신을 포기(Abandon)하여 전력 소비를 줄일 수 있음
+
+또한 프리앰블 검출 상태는 Pulse Preamble Detection Mode (PPDM) 또는 SNIFF 모드로 동작할 수 있다.
+
+- 이 모드는 0x1D (SNIFF Mode) 레지스터를 통해 설정 가능함
+- 수신기가 일정 시간 간격으로 Air를 주기적으로 샘플링(Sniffing)하여 일부 시간만 활성화함으로써 프리앰블 검출 시 필요한 전력을 줄이는 기법임.
+
+**2. Preamble Accumulation**
+
+프리앰블 시퀀스가 검출되며느 수신기는 **상호 상관(Cross-Correlated)**된 프리앰블 심볼을 누적(Accumulation)하면서 동시에 SFD 시퀀스를 찾기 시작함.
+
+(SFD 시퀀스에 대한 내용은 아래에서 더 자세하게 다룸)
+
+이 누적(Accumulation)은 SFD가 검출되면 종료됨.
+
+- 그러나 아주 가까운 거리의 LOS 환경에서는 누적이 매우 빠르게 진행되어 SFD가 검출되기도 이전에 조기 종료되기도 함
+- 이 경우, 수신기는 여전히 프리앰블은 수신하지만 누적은 하지 않고 계속하여 SFD 시퀀스를 탐색함
+
+**3. SFD Detection**
+
+SFD 검출은, 프레임 수신에서 가장 핵심적인 이벤트.
+
+> PHY 헤더의 시작을 나타내기도 하며 이 위치는 RMARKER가 정의되고 타임스탬프가 기록되는 시점임
+
+SFD 검출 시점부터 프리앰블 복조가 아닌, PHR  및 이후 데이터의 BPM/BPSK 복조로 전환함 (Demodulation)
+
+SFD가 일정 시간 내에 검출되지 않으면 수신을 중단할 수 있으며, 0x27:20 (DRX_SFDTOC) 에서 Timeout을 설정 가능함.
+
+(프리앰블이 잘못 검출된 경우, 불필요하게 긴 시간 동안 수신 상태에 머무는 것을 방지하기 위함)
+
+SFD의 길이(8심볼 or 64심볼) 및 수신기 설정은 0x04 (System Configuration) 레지스터를 통해 설정 가능
+
+위에서 말한 "표준 SFD" 이외에도, "비표준 SFD" 시퀀스를 프로그래밍하여 성능을 향상시킬 수 있음.
+
+(이는 0x21 (User Defined SFD sequence) 레지스터를 통해 설정할 수 있음)
+
+**4. PHR Demodulation**
+
+PHY 헤더(PHR)은 데이터 부분의 길이와 속도를 알려주는 역할을 함.
+
+850 kbps 및 6.8 Mbps 데이터 속도의 경우, PHR은 850kbps 방식으로 변조/복조 (Modulate/Demodulate) 됨.
+
+PHR의 속도에 맞게 데이터도 복조됨.
+
+(만약 PHR이 850 kbps를 나타내면, 이후 데이터도 850 bps로 복조됨)
+
+**5. Data Demodulation**
+
+데이터 수신 및 복조과정은 간략히 아래와 같음
+
+> 데이터 복조 -> 오류 정정 -> 프레임 필터링(선택) -> 수신이벤트 알림
+
+- 수신기에서는 Viterbi 디코더를 사용하여 데이터 비트를 복원함 (이는 PHR 수신에도 동일하게 적용)
+- 복원된 데이터는 Read-Solomon 디코더를 통과하여 가능한 추가 오류를 교정. (각 옥텟(Octet)은 CRC 검사를 통과하며, 프레임의 FCS와 비교)
+- 수신된 데이터 옥텟은 프레임 필터링 기능이 활성화 된 경우 필터링 됨 (USER MANUAL 47page)
+- 최종적으로 0x0F (System Event Status Register) 내의 RXDFR 및 RXFCG 이벤트 비트로 호스트에 신호 전달
+
+**6. RX Message Timestamp**
+
+프레임 수신 과정에서, SFD 검출 이벤트는 프리앰블 종료 및 PHR 시작을 표시하고 이 시점이 IC에서 타임스탬프가 찍히는 기준점이 됨.
+
+(IEEE 802.15.4 UWB 표준에서는 RMARKER가 안테나에 도착하는 순간을 중요한 이벤트로 지정하고, 이 시점을 타임스탬프 기준으로 함)
+
+- RMARKER 이벤트가 발생한 심볼에 대해 디지털 수신 회로가 Timestamp 기록
+- 수신 안테나 지연(LDE_RXANTD)를 "빼고", Leading Edge 검출 알고리즘에 의해 결정된 보정값을 "추가"
+- 최종적으로 보정된 RX 타임 스탬프를 기록 (RMARKER가 안테나에 도착한 실제 시간을 말함 0x15 (Receive Time Stamp))
+
+만약, 특정 수신 오류/타임아웃 이벤트가 발생시 반드시 수신기의 리셋이 필요함
+
+> PXPHE (PHY Header Error), RXRFSL (Read-Solomon Error), RXRFTO (Frame Wait Timeout)
+
+이는 다음 정상 프레임의 타임스탬프가 정확하게 계산되도록 보장하기 위함이며 위 경우를 제외하고는 리셋 필요 없음
+
+이러한 리셋은 0x36:00 (PMSC_CTRL0 의 SOFTRESET) 레지스터 필드를 통해 설정할 수 있다.
+
+## 🟥 BASIC FOR UNDERSTANDING
  
 #### ⭐ PRF (Pulse Repetition Frequency)
 
@@ -12,12 +178,11 @@ DW1000의 경우 선택할 수 있지만, 64MHz를 예로 1초에 64,000,000 개
 
 16MHz와 비교하여 펄스 간 간격이 더 짧기 때문에 시간 분해능이 더 높다 = 더 조밀한 시간 단위로 수신 신호 누적 가능
 
-## FRAME STRUCTURE
+## 🟥 FRAME STRUCTURE
 
 <img width="752" height="245" alt="image" src="https://github.com/user-attachments/assets/6cf782ac-db92-46e5-8d8e-9489b61abf05" />
 
 <img width="752" height="393" alt="image" src="https://github.com/user-attachments/assets/c2bc4449-6bb2-4f5e-93a8-72b758ea79b3" />
-
 
 UWB 통신은 기본적으로 프레임(Frame) 단위 전송 및 수신을 기반으로 함.
 
@@ -173,7 +338,7 @@ UWB 통신은 기본적으로 프레임(Frame) 단위 전송 및 수신을 기�
 
 </details>
 
-## CIR (Channel Impulse Response)
+## 🟥 CIR (Channel Impulse Response)
 
 > Channel impulse response (CIR) represents the propagation of a signal in response to the combined effects of scattering, fading, and power decay as it travels through a transmission medium, such as a wireless or acoustic channel.
 
@@ -202,7 +367,7 @@ DW1000은 내부 자체 알고리즘에서 FP_INDEX를 Direct Path로 판단하�
 
 따라서, 기존 TOF 값에 보정하여 Multipath 길이를 계산할 수 있을 뿐만 아니라, 실제 길이를 안다면 해당 신호가 NLOS 인지 판단 또한 할 수 있다는 점에서 의의를 가짐.
 
-## DIAGNOSTICS
+## 🟥 DIAGNOSTICS
 
 What can we obtaion from "**dwt_readaccdata()**" and "**dwt_readdiagnostics()**" function ??
 
