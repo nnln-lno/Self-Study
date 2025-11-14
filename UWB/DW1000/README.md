@@ -18,6 +18,22 @@
 
 송신기 설정은 "IDLE" 상태에서 수행되지만, 프레임 설정(Frame Configuration)은 송신 중에도 수행할 수 있음.
 
+```
+static dwt_config_t config = {
+    5,                /* [chn] Channel number. */
+    DWT_PRF_64M,      /* [prf] Pulse repetition frequency. */
+    DWT_PLEN_128,     /* [txPreambLength] 한 Preamble 내에 몇개의 심볼을 쓸건지?. Used in TX only. */
+                      /* 508 Chip * 128 Symbol = 65,024 Chip 으로 구성됨. */
+    DWT_PAC8,         /* [rxPAC] Preamble acquisition chunk size. Used in RX only. */
+    10,               /* [txCode] TX preamble code. Used in TX only. */
+    10,               /* [rxCode] RX preamble code. Used in RX only. */
+    0,                /* [nsSFD] 0 to use standard SFD(Start Frame Delimiter), 1 to use non-standard SFD. */
+    DWT_BR_6M8,       /* [dataRate] Data rate. */
+    DWT_PHRMODE_STD,  /* [phrMode] PHY header mode. */
+    (128 + 1 + 8 - 8)     /* [sfdTO] SFD timeout (preamble length + 1 + SFD length - PAC size). Used in RX only. */
+};
+```
+
 (OFF, WAKEUP, INIT, IDLE 등의 Operational State에 대해서는 User Manual 15page 참고하면 된다.)
 
 모든 관련 설정이 완료되었다는 가정 하에, 호스트는 0x0D (Ssyem Control Register) 레지스터에 "TXSTRT" 제어비트를 설정하여 송신을 시작.
@@ -366,6 +382,28 @@ DW1000은 내부 자체 알고리즘에서 FP_INDEX를 Direct Path로 판단하�
 그러면 FP_INDEX(예 : 750)를 기준 0s 로 잡고, 만약 760에 Peak가 하나 존재한다면 1ns * (760-750) = 10ns 만큼 지연되어 신호가 들어왔음을 말함.
 
 따라서, 기존 TOF 값에 보정하여 Multipath 길이를 계산할 수 있을 뿐만 아니라, 실제 길이를 안다면 해당 신호가 NLOS 인지 판단 또한 할 수 있다는 점에서 의의를 가짐.
+
+-------
+
+현재까지 생각되는 몇가지 가설? 혹은 커뮤니티 답변 추측들에 의해 정리하면 다음과 같다.
+
+- 송신기
+
+  Preamble Sequence를 알고있고, (설정에 따라 다름) 128개의 Symbol과 각 Symbol에는 508개의 칩(+1 0 -1)인  펄스로 구성되어있음
+
+  (누적기는 칩당 2샘플로 총 1016개의 샘플을 만들고, 해당되는 심볼끼리 Cross-Correlation을 계산함)
+
+- 수신기
+
+  SFD 탐지 전에는 RX Time을 기록할 수 없음. 이는 정확한 도착시간을 Preamble 읽는 동안 알 수 없기 때문에
+
+  따라서 Qorvo 내부적으로 시간을 초기 추정하고 이를 750 (얘네가 지정한 기준점) 인덱스를 기준삼아 누적을 시작함.
+
+  이후 128개의 심볼을 "순차적"으로 지속적으로 누적하며 FP_INDEX를 잡는데 이는 누적이 되는 순간마다 조금 씩 바뀔 수 있을것으로 보임
+
+  (이러한 이유로 고정적으로 750 값으로 잡히는게 아닌 조금씩 바뀌는 것으로 생각된다.)
+
+  GPT와 관련 자료들을 토대로, Preamble의 끝지점에서 LDE가 동작하는게 아닌, Symbol 누적중에도 동작하므로 약간 달라지는게 합리적임.
 
 ## 🟥 DIAGNOSTICS
 
